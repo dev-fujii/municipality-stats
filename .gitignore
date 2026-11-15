@@ -1,0 +1,8 @@
+*.exe
+*.test
+*.out
+.idea/
+.env
+# go.work は手元で別のリポジトリとつなぐときだけ使う
+go.work
+go.work.sum

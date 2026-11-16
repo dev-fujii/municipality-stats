@@ -2,6 +2,12 @@ package estat
 
 import "testing"
 
+func TestZeroValueIsNotOK(t *testing.T) {
+	if (Value{}).Status == StatusOK {
+		t.Fatal("zero Value must not be StatusOK")
+	}
+}
+
 func TestParseValue(t *testing.T) {
 	tests := []struct {
 		name    string

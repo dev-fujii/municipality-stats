@@ -9,7 +9,8 @@ import (
 type Status int
 
 const (
-	StatusOK           Status = iota // 数が入っている
+	StatusUnset        Status = iota // 未設定（ゼロ値）。正しい値としては使わない
+	StatusOK                         // 数が入っている
 	StatusNotSurveyed                // 「***」調査又は集計していない
 	StatusUnavailable                // 「-」データが得られない
 	StatusConfidential               // 「X」秘匿されている

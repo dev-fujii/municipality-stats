@@ -6,7 +6,7 @@ Claude と Codex に共通の指示です。
 
 e-Stat の統計と気象庁の平年値を取り込み、市区町村ごとの値にまとめて指標を計算する Go のライブラリを作ります。MIT ライセンスで公開します。
 
-`estat` パッケージから作り始めた段階です。ライブラリ、動かせる見本のコマンド、`example/` はこれから本人が作ります。まず複数の県で試します。モジュールは `github.com/dev-fujii/municipality-stats` です。
+`estat` パッケージから作り始めた段階です。ライブラリ、動かせる見本のコマンド、`example/` はこれから作ります。まず複数の県で試します。モジュールは `github.com/dev-fujii/municipality-stats` です。
 
 ## 確かめ方
 
@@ -17,10 +17,6 @@ go vet ./...
 golangci-lint run
 go test ./...
 ```
-
-## 分担
-
-Go は本人が書きます。AI はヒントとレビューを担当し、「書いて」と頼まれたときだけ Go を書きます。テンプレート・CSS・JavaScript と、CI・lint などの設定ファイルは AI が書いてよいものとします。
 
 ## 守ること
 

@@ -7,8 +7,12 @@ import (
 	"strconv"
 )
 
+// Status は、e-Stat の値に数があるか、どの理由で無いかを表す。
+// ゼロ値を未設定にし、初期化を忘れた値を数が入っていると読まないようにする。
 type Status int
 
+// StatusUnset 以降の定数は、未設定、数値、3種類の記号を区別する。
+// 記号を別々の状態にし、あとから値が無い理由を区別できるようにする。
 const (
 	StatusUnset        Status = iota // 未設定（ゼロ値）。正しい値としては使わない
 	StatusOK                         // 数が入っている
@@ -17,15 +21,23 @@ const (
 	StatusConfidential               // 「X」秘匿されている
 )
 
+// Value は、e-Stat の元の文字列と、その値の状態を持つ。
+// Raw は float64 にせず文字列で持ち、102.55 のような値の桁を丸めずに保つ。
 type Value struct {
 	Raw    string // e-Stat の "$" そのまま（"102.55" の桁を保つ）
 	Status Status
 }
 
+// numericValuePattern は、受け付ける数の文字列の形を定める。
+// 「-」だけは記号として除き、人口増減率のような負の数は受け付ける。
 var numericValuePattern = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
 
+// yearTimePattern は、社会・人口統計体系の年を表す @time の形を定める。
+// 四半期や月の値を年として取り込まないよう、10桁の数字で末尾が 100000 のものに限る。
 var yearTimePattern = regexp.MustCompile(`^[0-9]{4}100000$`)
 
+// parseValue は、値の文字列を元の文字列と状態に変える。
+// API の変化や読み漏れに気づけるよう、数と既知の3記号以外はエラーにする。
 func parseValue(s string) (Value, error) {
 	switch s {
 	case "***":

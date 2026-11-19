@@ -101,16 +101,21 @@ type getStatsDataResponse struct {
 	GetStatsData getStatsDataJSON `json:"GET_STATS_DATA"`
 }
 
+// getStatsDataJSON は GET_STATS_DATA の処理結果と統計データを読む。
+// JSON の形をパッケージの外に出さず、内部で扱う。
 type getStatsDataJSON struct {
 	Result          resultJSON          `json:"RESULT"`
 	StatisticalData statisticalDataJSON `json:"STATISTICAL_DATA"`
 }
 
+// resultJSON は RESULT の処理状態とメッセージを読む。
+// Status は 0 が正常、1 が該当データなし（DATA_INF が無い）、100 が appId の誤りを表す。
 type resultJSON struct {
 	Status   int    `json:"STATUS"`
 	ErrorMsg string `json:"ERROR_MSG"`
 }
 
+// statisticalDataJSON は STATISTICAL_DATA の続きの取得情報と値・注記を読む。
 type statisticalDataJSON struct {
 	ResultInf resultInfJSON `json:"RESULT_INF"`
 	DataInf   dataInfJSON   `json:"DATA_INF"`
@@ -121,6 +126,8 @@ type resultInfJSON struct {
 	NextKey int `json:"NEXT_KEY"`
 }
 
+// dataInfJSON は、値と記号の意味を照合するために DATA_INF の VALUE と NOTE を読む。
+// VALUE と NOTE は、配列とオブジェクト1つのどちらでも受け付ける。
 type dataInfJSON struct {
 	Note  oneOrMany[noteJSON]  `json:"NOTE"`
 	Value oneOrMany[valueJSON] `json:"VALUE"`

@@ -2,12 +2,14 @@ package estat
 
 import "testing"
 
+// TestZeroValueIsNotOK は、Value のゼロ値が数の入った状態にならないことを確かめる。
 func TestZeroValueIsNotOK(t *testing.T) {
 	if (Value{}).Status == StatusOK {
 		t.Fatal("zero Value must not be StatusOK")
 	}
 }
 
+// TestParseValue は、数と記号の状態・元の文字列を保ち、受け付けない文字列をエラーにすることを確かめる。
 func TestParseValue(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -40,6 +42,7 @@ func TestParseValue(t *testing.T) {
 	}
 }
 
+// TestParseYear は、年を表す @time から年を取り出し、それ以外の形をエラーにすることを確かめる。
 func TestParseYear(t *testing.T) {
 	tests := []struct {
 		name    string

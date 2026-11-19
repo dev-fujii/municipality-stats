@@ -7,6 +7,7 @@ import (
 	"testing"
 )
 
+// TestOneOrManyUnmarshalJSON は、配列と単一オブジェクトを並びとして読み、ほかの形をエラーにすることを確かめる。
 func TestOneOrManyUnmarshalJSON(t *testing.T) {
 	type item struct {
 		Raw string `json:"$"`
@@ -40,6 +41,7 @@ func TestOneOrManyUnmarshalJSON(t *testing.T) {
 	}
 }
 
+// TestNoteJSON は、NOTE から記号とその意味の文を読み取れることを確かめる。
 func TestNoteJSON(t *testing.T) {
 	input := `[
 		{"@char":"***","$":"調査又は集計していないもの"},
@@ -59,6 +61,7 @@ func TestNoteJSON(t *testing.T) {
 	}
 }
 
+// TestValueJSONUnmarshalJSON は、VALUE を読み、@unit の欠け・null を許し、未知のキーや必須値の不備をエラーにすることを確かめる。
 func TestValueJSONUnmarshalJSON(t *testing.T) {
 	want := valueJSON{Tab: "00001", Cat01: "H2130", Area: "10201", Time: "2023100000", Unit: "ｍ2", Raw: "102.55"}
 	noUnit := want
@@ -95,6 +98,7 @@ func TestValueJSONUnmarshalJSON(t *testing.T) {
 	}
 }
 
+// TestOneOrManyValueJSON は、単一オブジェクトの VALUE も記号の文字列を保って並びとして読めることを確かめる。
 func TestOneOrManyValueJSON(t *testing.T) {
 	input := `{"@tab":"00001","@cat01":"H2130","@area":"10201","@time":"2023100000","$":"-"}`
 	want := oneOrMany[valueJSON]{{Tab: "00001", Cat01: "H2130", Area: "10201", Time: "2023100000", Raw: "-"}}
@@ -108,6 +112,7 @@ func TestOneOrManyValueJSON(t *testing.T) {
 	}
 }
 
+// TestGetStatsDataResponse は、保存した応答から処理結果・続きの取得位置・注記・値を読み取れることを確かめる。
 func TestGetStatsDataResponse(t *testing.T) {
 	data, err := os.ReadFile("testdata/get_stats_data.json")
 	if err != nil {

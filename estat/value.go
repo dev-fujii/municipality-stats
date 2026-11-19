@@ -4,6 +4,7 @@ package estat
 import (
 	"fmt"
 	"regexp"
+	"strconv"
 )
 
 type Status int
@@ -23,6 +24,8 @@ type Value struct {
 
 var numericValuePattern = regexp.MustCompile(`^-?[0-9]+(\.[0-9]+)?$`)
 
+var yearTimePattern = regexp.MustCompile(`^[0-9]{4}100000$`)
+
 func parseValue(s string) (Value, error) {
 	switch s {
 	case "***":
@@ -38,4 +41,13 @@ func parseValue(s string) (Value, error) {
 	}
 
 	return Value{}, fmt.Errorf("invalid e-Stat value: %q", s)
+}
+
+// parseYear は @time の "2023100000" から年の 2023 を取り出す。
+// 後ろの6桁が 100000 でない時点（四半期や月）を、年の値として取り込まないようにエラーにする。
+func parseYear(s string) (int, error) {
+	if !yearTimePattern.MatchString(s) {
+		return 0, fmt.Errorf("e-Stat: unexpected @time %q", s)
+	}
+	return strconv.Atoi(s[:4])
 }

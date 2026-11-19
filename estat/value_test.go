@@ -39,3 +39,34 @@ func TestParseValue(t *testing.T) {
 		})
 	}
 }
+
+func TestParseYear(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    int
+		wantErr bool
+	}{
+		{name: "year", input: "2023100000", want: 2023},
+		{name: "not yearly", input: "2023000000", wantErr: true},
+		{name: "month", input: "2023000101", wantErr: true},
+		{name: "short", input: "202310000", wantErr: true},
+		{name: "long", input: "20231000000", wantErr: true},
+		{name: "sign", input: "-023100000", wantErr: true},
+		{name: "leading minus", input: "-2023100000", wantErr: true},
+		{name: "full-width digits", input: "２０２３100000", wantErr: true},
+		{name: "empty", input: "", wantErr: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseYear(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Fatalf("parseYear(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+			}
+			if got != tt.want {
+				t.Errorf("parseYear(%q) = %d, want %d", tt.input, got, tt.want)
+			}
+		})
+	}
+}

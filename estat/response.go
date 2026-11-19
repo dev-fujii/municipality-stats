@@ -95,3 +95,33 @@ func (v *valueJSON) UnmarshalJSON(data []byte) error {
 	*v = parsed
 	return nil
 }
+
+// getStatsDataResponse は getStatsData の応答全体を読む。使わないキーは読まずに捨てる。
+type getStatsDataResponse struct {
+	GetStatsData getStatsDataJSON `json:"GET_STATS_DATA"`
+}
+
+type getStatsDataJSON struct {
+	Result          resultJSON          `json:"RESULT"`
+	StatisticalData statisticalDataJSON `json:"STATISTICAL_DATA"`
+}
+
+type resultJSON struct {
+	Status   int    `json:"STATUS"`
+	ErrorMsg string `json:"ERROR_MSG"`
+}
+
+type statisticalDataJSON struct {
+	ResultInf resultInfJSON `json:"RESULT_INF"`
+	DataInf   dataInfJSON   `json:"DATA_INF"`
+}
+
+// resultInfJSON の NextKey は、続きが無いときはキーが無く 0 になる。
+type resultInfJSON struct {
+	NextKey int `json:"NEXT_KEY"`
+}
+
+type dataInfJSON struct {
+	Note  oneOrMany[noteJSON]  `json:"NOTE"`
+	Value oneOrMany[valueJSON] `json:"VALUE"`
+}

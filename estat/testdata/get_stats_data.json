@@ -1,0 +1,21 @@
+{
+  "GET_STATS_DATA": {
+    "RESULT": { "STATUS": 0, "ERROR_MSG": "正常に終了しました。", "DATE": "2026-11-15T16:35:00.175+09:00" },
+    "PARAMETER": { "STATS_DATA_ID": "0000020208", "START_POSITION": 1, "LIMIT": 4 },
+    "STATISTICAL_DATA": {
+      "RESULT_INF": { "TOTAL_NUMBER": 34, "FROM_NUMBER": 1, "TO_NUMBER": 4, "NEXT_KEY": 5 },
+      "TABLE_INF": { },
+      "DATA_INF": {
+        "NOTE": [
+          { "@char": "***", "$": "調査又は集計していないもの" },
+          { "@char": "-", "$": "データが得られないもの" },
+          { "@char": "X", "$": "数値が秘匿されているもの" }
+        ],
+        "VALUE": [
+          { "@tab": "00001", "@cat01": "H2130", "@area": "10201", "@time": "2023100000", "@unit": "ｍ2", "$": "102.55" },
+          { "@tab": "00001", "@cat01": "H2130", "@area": "10424", "@time": "2023100000", "@unit": "ｍ2", "$": "-" }
+        ]
+      }
+    }
+  }
+}

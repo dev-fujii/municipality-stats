@@ -2,6 +2,7 @@ package estat
 
 import (
 	"encoding/json"
+	"os"
 	"slices"
 	"testing"
 )
@@ -104,5 +105,33 @@ func TestOneOrManyValueJSON(t *testing.T) {
 	}
 	if !slices.Equal(got, want) {
 		t.Errorf("got %+v, want %+v", got, want)
+	}
+}
+
+func TestGetStatsDataResponse(t *testing.T) {
+	data, err := os.ReadFile("testdata/get_stats_data.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var got getStatsDataResponse
+	if err := json.Unmarshal(data, &got); err != nil {
+		t.Fatalf("Unmarshal error = %v", err)
+	}
+
+	body := got.GetStatsData
+	if body.Result.Status != 0 || body.Result.ErrorMsg != "正常に終了しました。" {
+		t.Errorf("Result = %+v", body.Result)
+	}
+	if body.StatisticalData.ResultInf.NextKey != 5 {
+		t.Errorf("NextKey = %d, want 5", body.StatisticalData.ResultInf.NextKey)
+	}
+
+	dataInf := body.StatisticalData.DataInf
+	if len(dataInf.Note) != 3 {
+		t.Errorf("len(Note) = %d, want 3", len(dataInf.Note))
+	}
+	if len(dataInf.Value) != 2 || dataInf.Value[1].Area != "10424" || dataInf.Value[1].Raw != "-" {
+		t.Errorf("Value = %+v", dataInf.Value)
 	}
 }

@@ -1,6 +1,9 @@
 package estat
 
-import "testing"
+import (
+	"math/big"
+	"testing"
+)
 
 // TestZeroValueIsNotOK は、Value のゼロ値が数の入った状態にならないことを確かめる。
 func TestZeroValueIsNotOK(t *testing.T) {
@@ -40,6 +43,29 @@ func TestParseValue(t *testing.T) {
 			}
 		})
 	}
+}
+
+func FuzzParseValue(f *testing.F) {
+	for _, input := range []string{"102.55", "0", "-12.3", "***", "-", "X", "x", "", "1,234", "1e3"} {
+		f.Add(input)
+	}
+	f.Fuzz(func(t *testing.T, input string) {
+		v, err := parseValue(input)
+		if err != nil {
+			return
+		}
+		if v.Status == StatusUnset {
+			t.Fatalf("parseValue(%q) returned StatusUnset without error", input)
+		}
+		if v.Status == StatusOK {
+			if _, ok := new(big.Rat).SetString(v.Raw); !ok {
+				t.Errorf("parseValue(%q) returned StatusOK with invalid number %q", input, v.Raw)
+			}
+			if v.Raw != input {
+				t.Errorf("parseValue(%q).Raw = %q, want unchanged input", input, v.Raw)
+			}
+		}
+	})
 }
 
 // TestParseYear は、年を表す @time から年を取り出し、それ以外の形をエラーにすることを確かめる。

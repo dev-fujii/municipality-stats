@@ -125,11 +125,14 @@ func TestGetStatsDataResponse(t *testing.T) {
 	}
 
 	body := got.GetStatsData
-	if body.Result.Status != 0 || body.Result.ErrorMsg != "正常に終了しました。" {
+	if body.Result.Status == nil || *body.Result.Status != 0 || body.Result.ErrorMsg != "正常に終了しました。" {
 		t.Errorf("Result = %+v", body.Result)
 	}
 	if body.StatisticalData.ResultInf.NextKey != 5 {
 		t.Errorf("NextKey = %d, want 5", body.StatisticalData.ResultInf.NextKey)
+	}
+	if body.StatisticalData.ResultInf.TotalNumber != 34 {
+		t.Errorf("TotalNumber = %d, want 34", body.StatisticalData.ResultInf.TotalNumber)
 	}
 
 	dataInf := body.StatisticalData.DataInf

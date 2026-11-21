@@ -109,9 +109,9 @@ type getStatsDataJSON struct {
 }
 
 // resultJSON は RESULT の処理状態とメッセージを読む。
-// Status は 0 が正常、1 が該当データなし（DATA_INF が無い）、100 が appId の誤りを表す。
+// Status は、キーの欠けや null を正常の 0 と区別するため、ポインターで受ける。
 type resultJSON struct {
-	Status   int    `json:"STATUS"`
+	Status   *int   `json:"STATUS"`
 	ErrorMsg string `json:"ERROR_MSG"`
 }
 
@@ -123,7 +123,8 @@ type statisticalDataJSON struct {
 
 // resultInfJSON の NextKey は、続きが無いときはキーが無く 0 になる。
 type resultInfJSON struct {
-	NextKey int `json:"NEXT_KEY"`
+	NextKey     int `json:"NEXT_KEY"`
+	TotalNumber int `json:"TOTAL_NUMBER"`
 }
 
 // dataInfJSON は、値と記号の意味を照合するために DATA_INF の VALUE と NOTE を読む。

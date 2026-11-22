@@ -1,0 +1,23 @@
+{
+  "type": "FeatureCollection",
+  "crs": {"type": "name", "properties": {"name": "EPSG:6668"}},
+  "features": [
+    {"type": "Feature", "properties": {"N03_007": "10002"}, "geometry": {"type": "Polygon", "coordinates": [
+      [[139,36],[140,36],[140,37],[139,37],[139,36]],
+      [[139.25,36.25],[139.75,36.25],[139.75,36.75],[139.25,36.75],[139.25,36.25]]
+    ]}},
+    {"type": "Feature", "properties": {"N03_007": "10001"}, "geometry": {"type": "MultiPolygon", "coordinates": [
+      [[[140,36],[141,36],[141,37],[140,37],[140,36]]],
+      [[[142,36],[143,36],[143,37],[142,37],[142,36]]]
+    ]}},
+    {"type": "Feature", "properties": {"N03_007": "10002"}, "geometry": {"type": "Polygon", "coordinates": [
+      [[144,36],[145,36],[145,37],[144,37],[144,36]]
+    ]}},
+    {"type": "Feature", "properties": {"N03_007": null}, "geometry": {"type": "Polygon", "coordinates": [
+      [[146,36],[147,36],[147,37],[146,37],[146,36]]
+    ]}},
+    {"type": "Feature", "properties": {"N03_007": ""}, "geometry": {"type": "Polygon", "coordinates": [
+      [[148,36],[149,36],[149,37],[148,37],[148,36]]
+    ]}}
+  ]
+}

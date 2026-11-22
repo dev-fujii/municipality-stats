@@ -1,0 +1,6 @@
+Station Number,Station Name,Station Name,Station Name,Latitude,Latitude,Longitude,Longitude,Altitude,Height of Anemometer,Precipitation,Wind Speed,Temperature,Sunshine Duration,Depth of Snow Cover
+,(Kanji),(Kana),,(degree),(minutes),(degree),(minutes),(m),(m)
+49236,切石　　　　　　　　,ｷﾘｲｼ           ,KIRIISHI                      ,35,28.0,138,26.5,0226,010.0,1,1,1,2,0
+49251,河口湖　　　　　　　,ｶﾜｸﾞﾁｺ         ,KAWAGUCHI-KO                  ,35,30.0,138,45.6,0860,015.1,1,1,1,1,1
+50066,富士山　　　　　　　,ﾌｼﾞｻﾝ          ,FUJISAN                       ,35,21.6,138,43.6,3775,     ,0,0,1,1,0
+50477,静岡空港　　　　　　,ｼｽﾞｵｶｸｳｺｳ      ,SHIZUOKA-KUKO                 ,34,47.7,138,11.3,0132,010.0,1,1,1,0,0

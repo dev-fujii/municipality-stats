@@ -1,9 +1,68 @@
 package geo
 
 import (
+	"errors"
+	"math/big"
 	"slices"
 	"testing"
 )
+
+func TestMeshCenter(t *testing.T) {
+	b := readJSON(t, document(feature("10001", `[[[100,0],[180,0],[180,90],[100,90],[100,0]]]`)), nil)
+	for _, tt := range []struct {
+		code                string
+		latitude, longitude string
+	}{
+		{"543900001", "17281/480", "44481/320"},
+		{"543900002", "17281/480", "44483/320"},
+		{"543900003", "17283/480", "44481/320"},
+		{"543900004", "17283/480", "44483/320"},
+		{"543900013", "17283/480", "44485/320"},
+		{"543977994", "17599/480", "44799/320"},
+		{"554000001", "17601/480", "44801/320"},
+		{"000000001", "1/480", "32001/320"},
+	} {
+		t.Run(tt.code, func(t *testing.T) {
+			point, err := MeshCenter(tt.code)
+			want := rationalPoint(tt.latitude, tt.longitude)
+			if err != nil || point.Latitude.Cmp(want.Latitude) != 0 || point.Longitude.Cmp(want.Longitude) != 0 {
+				t.Fatalf("point=%+v error=%v want=%+v", point, err, want)
+			}
+			for _, coordinate := range []*big.Rat{point.Latitude, point.Longitude} {
+				scaled := new(big.Rat).Mul(coordinate, big.NewRat(coordinateScale, 1))
+				if !scaled.IsInt() {
+					t.Fatalf("coordinate cannot be represented exactly: %s", coordinate)
+				}
+			}
+			location, err := b.Locate(point)
+			if err != nil || location != (Location{AreaCode: "10001"}) {
+				t.Fatalf("Locate=%+v error=%v", location, err)
+			}
+			point.Latitude.SetInt64(0)
+			if point.Longitude.Cmp(want.Longitude) != 0 {
+				t.Fatal("coordinates share storage")
+			}
+			again, err := MeshCenter(tt.code)
+			if err != nil || again.Latitude.Cmp(want.Latitude) != 0 {
+				t.Fatal("changing one result affects another")
+			}
+		})
+	}
+}
+
+func TestMeshCenterInvalidCode(t *testing.T) {
+	for _, code := range []string{
+		"", "54390001", "5439000011", "54390000X", "５43900001", "5439000X1", "54390X001",
+		"X43900001", "543980001", "543909001", "543900000", "543900005", "54390000-",
+	} {
+		t.Run(code, func(t *testing.T) {
+			point, err := MeshCenter(code)
+			if point.Latitude != nil || point.Longitude != nil || !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("point=%+v error=%v", point, err)
+			}
+		})
+	}
+}
 
 func TestPrimaryMeshes(t *testing.T) {
 	for _, tt := range []struct {

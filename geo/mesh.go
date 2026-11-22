@@ -2,8 +2,36 @@ package geo
 
 import (
 	"fmt"
+	"math/big"
 	"slices"
 )
+
+func validateMeshCode(code string) error {
+	if len(code) != 9 {
+		return invalid("mesh code must contain nine ASCII digits")
+	}
+	for i := range code {
+		if code[i] < '0' || code[i] > '9' {
+			return invalid("mesh code must contain nine ASCII digits")
+		}
+	}
+	if code[4] > '7' || code[5] > '7' || code[8] < '1' || code[8] > '4' {
+		return invalid("secondary mesh must use 0..7 and quadrant must use 1..4")
+	}
+	return nil
+}
+
+// MeshCenter は500mメッシュの中心を度単位の正確な有理数で返す。
+func MeshCenter(meshCode string) (Point, error) {
+	if err := validateMeshCode(meshCode); err != nil {
+		return Point{}, fmt.Errorf("%w: mesh code %q: %v", ErrInvalidArgument, meshCode, err)
+	}
+	digit := func(i int) int64 { return int64(meshCode[i] - '0') }
+	quadrant := digit(8) - 1
+	latitude := (10*digit(0)+digit(1))*320 + digit(4)*40 + digit(6)*4 + (quadrant/2)*2 + 1
+	longitude := (100+10*digit(2)+digit(3))*320 + digit(5)*40 + digit(7)*4 + (quadrant%2)*2 + 1
+	return Point{Latitude: big.NewRat(latitude, 480), Longitude: big.NewRat(longitude, 320)}, nil
+}
 
 // PrimaryMeshes は区域と面積を持って交差する1次メッシュを昇順で返す。
 func (b *Boundaries) PrimaryMeshes() []string { return slices.Clone(b.meshes) }

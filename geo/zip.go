@@ -47,6 +47,10 @@ func nilReader(r io.ReaderAt) bool {
 }
 
 func n03Bytes(src ZIPSource) ([]byte, ReadError, error) {
+	return selectedZIPBytes(src, n03Path, "N03 GeoJSON")
+}
+
+func selectedZIPBytes(src ZIPSource, pattern *regexp.Regexp, description string) ([]byte, ReadError, error) {
 	where := ReadError{Source: src.Name}
 	z, err := zip.NewReader(src.Reader, src.Size)
 	if err != nil {
@@ -54,17 +58,17 @@ func n03Bytes(src ZIPSource) ([]byte, ReadError, error) {
 	}
 	var selected *zip.File
 	for _, f := range z.File {
-		if f.FileInfo().IsDir() || !n03Path.MatchString(path.Base(f.Name)) {
+		if f.FileInfo().IsDir() || !pattern.MatchString(path.Base(f.Name)) {
 			continue
 		}
 		where.File = f.Name
 		if selected != nil {
-			return nil, where, where.fail("File", invalid("multiple N03 GeoJSON files"))
+			return nil, where, where.fail("File", invalid("multiple %s files", description))
 		}
 		selected = f
 	}
 	if selected == nil {
-		return nil, where, where.fail("File", invalid("N03 GeoJSON file missing"))
+		return nil, where, where.fail("File", invalid("%s file missing", description))
 	}
 	r, err := selected.Open()
 	if err != nil {

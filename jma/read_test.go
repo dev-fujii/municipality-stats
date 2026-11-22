@@ -93,7 +93,7 @@ func replaceCol(row []byte, col int, value string) []byte {
 	return bytes.Join(cols, []byte{','})
 }
 
-func checkReadError(t testing.TB, ds *Dataset, err error, archive, file string, line int, id string, element Element, field string) *ReadError {
+func checkReadError(t testing.TB, ds *Dataset, err error, archive, file string, line int, id string, element Element, field string) {
 	t.Helper()
 	if ds != nil || err == nil || !errors.Is(err, ErrInvalidFormat) {
 		t.Fatalf("dataset=%v error=%v, want nil and ErrInvalidFormat", ds, err)
@@ -113,7 +113,6 @@ func checkReadError(t testing.TB, ds *Dataset, err error, archive, file string, 
 	if line != 0 && !strings.Contains(err.Error(), fmt.Sprint(line)) {
 		t.Errorf("error omits line %d: %v", line, err)
 	}
-	return re
 }
 
 func TestRead(t *testing.T) {

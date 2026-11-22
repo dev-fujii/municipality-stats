@@ -152,7 +152,7 @@ func parseStation(row []byte, where ReadError) (Station, error) {
 		dest *ObservationMark
 	}{{"Precipitation", &s.Precipitation}, {"Wind", &s.Wind}, {"Temperature", &s.Temperature}, {"Sunshine", &s.Sunshine}, {"SnowDepth", &s.SnowDepth}} {
 		mark := cols[10+i][0]
-		if mark != '0' && mark != '1' && !(i == 3 && mark == '2') {
+		if mark != '0' && mark != '1' && (i != 3 || mark != '2') {
 			return s, where.fail(field.name, invalid("invalid observation mark %q", mark))
 		}
 		*field.dest = ObservationMark(mark - '0')

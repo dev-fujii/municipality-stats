@@ -9,6 +9,7 @@ import (
 	"io"
 	"math/big"
 	"slices"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -28,19 +29,37 @@ type area struct {
 	box      rectangle
 }
 
-// Boundaries は ReadN03 で読み込んだ統合後の区域を保持する。
+// Boundaries は N03 から読み込んだ統合後の区域を保持する。
 type Boundaries struct {
-	areas  []area
-	meshes []string
+	areas    []area
+	meshes   []string
+	excluded []string
+}
+
+// N03Options は ReadN03WithOptions の設定。
+type N03Options struct {
+	Rollup  map[string]string // 区コード→市コード。nil は統合なし。
+	Exclude []string          // 読み込みから外す5桁の市区町村コード。
 }
 
 // ReadN03 は各 ZIP の GeoJSON を読み、rollup の区を市にまとめる。
 // Reader は閉じず、失敗時には部分結果を返さない。
 func ReadN03(sources []ZIPSource, rollup map[string]string) (*Boundaries, error) {
+	return ReadN03WithOptions(sources, N03Options{Rollup: rollup})
+}
+
+// ReadN03WithOptions は各 ZIP の GeoJSON を読み、元のコードで除外してから区を市にまとめる。
+// Exclude の形式違反・重複・末尾000・Rollup のキーや値との重複は ErrInvalidArgument とする。
+// Reader は閉じず、失敗時には部分結果を返さない。
+func ReadN03WithOptions(sources []ZIPSource, opts N03Options) (*Boundaries, error) {
 	if err := validateSources(sources); err != nil {
 		return nil, err
 	}
-	if err := validateRollup(rollup); err != nil {
+	if err := validateRollup(opts.Rollup); err != nil {
+		return nil, err
+	}
+	excluded, err := validateExclude(opts.Exclude, opts.Rollup)
+	if err != nil {
 		return nil, err
 	}
 	byCode := make(map[string]*area)
@@ -49,7 +68,7 @@ func ReadN03(sources []ZIPSource, rollup map[string]string) (*Boundaries, error)
 		if err != nil {
 			return nil, err
 		}
-		if err := readFeatures(data, where, rollup, byCode); err != nil {
+		if err := readFeatures(data, where, opts.Rollup, excluded, byCode); err != nil {
 			return nil, err
 		}
 	}
@@ -67,8 +86,18 @@ func ReadN03(sources []ZIPSource, rollup map[string]string) (*Boundaries, error)
 		return 0
 	})
 	b.meshes = primaryMeshes(b.areas)
+	for code, found := range excluded {
+		if found {
+			b.excluded = append(b.excluded, code)
+		}
+	}
+	slices.Sort(b.excluded)
 	return b, nil
 }
+
+// Excluded は Exclude のうち、N03 に地物があって外したコードを昇順で返す。
+// 返すスライスはコピーであり、変更しても Boundaries に影響しない。
+func (b *Boundaries) Excluded() []string { return slices.Clone(b.excluded) }
 
 func areaCode(s string) bool {
 	if len(s) != 5 {
@@ -92,6 +121,27 @@ func validateRollup(rollup map[string]string) error {
 	return nil
 }
 
+func validateExclude(exclude []string, rollup map[string]string) (map[string]bool, error) {
+	excluded := make(map[string]bool, len(exclude))
+	for _, code := range exclude {
+		if !areaCode(code) || strings.HasSuffix(code, "000") {
+			return nil, fmt.Errorf("%w: invalid excluded area code %q", ErrInvalidArgument, code)
+		}
+		if _, ok := excluded[code]; ok {
+			return nil, fmt.Errorf("%w: duplicate excluded area code %q", ErrInvalidArgument, code)
+		}
+		excluded[code] = false
+	}
+	for from, to := range rollup {
+		_, fromExcluded := excluded[from]
+		_, toExcluded := excluded[to]
+		if fromExcluded || toExcluded {
+			return nil, fmt.Errorf("%w: excluded area code conflicts with rollup %q -> %q", ErrInvalidArgument, from, to)
+		}
+	}
+	return excluded, nil
+}
+
 func decodeJSON(data []byte, dst any) error {
 	d := json.NewDecoder(bytes.NewReader(data))
 	d.UseNumber()
@@ -108,7 +158,7 @@ func decodeJSON(data []byte, dst any) error {
 	return nil
 }
 
-func readFeatures(data []byte, where ReadError, rollup map[string]string, byCode map[string]*area) error {
+func readFeatures(data []byte, where ReadError, rollup map[string]string, excluded map[string]bool, byCode map[string]*area) error {
 	if !utf8.Valid(data) {
 		return where.fail("JSON", invalid("invalid UTF-8"))
 	}
@@ -171,7 +221,12 @@ func readFeatures(data []byte, where ReadError, rollup map[string]string, byCode
 		if err != nil {
 			return where.fail(base+".Geometry", err)
 		}
-		if code == "" {
+		if code == "" || strings.HasSuffix(code, "000") {
+			where.Key = ""
+			continue
+		}
+		if _, ok := excluded[code]; ok {
+			excluded[code] = true
 			where.Key = ""
 			continue
 		}

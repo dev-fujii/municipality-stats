@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -110,6 +111,166 @@ func TestReadN03(t *testing.T) {
 			if !slices.Equal(b.AreaCodes(), tt.codes) || b.PrimaryMeshes()[0] == "0000" {
 				t.Fatal("returned slices share storage")
 			}
+		})
+	}
+}
+
+func TestReadN03WithOptionsCompatibility(t *testing.T) {
+	for _, rollup := range []map[string]string{nil, {"10001": "10201", "10002": "10201"}} {
+		for _, exclude := range [][]string{nil, {}} {
+			sources := []ZIPSource{sourceJSON(t, fixture(t, "rectangles.geojson"))}
+			want, err := ReadN03(sources, rollup)
+			if err != nil {
+				t.Fatal(err)
+			}
+			got, err := ReadN03WithOptions(sources, N03Options{Rollup: rollup, Exclude: exclude})
+			if err != nil || !reflect.DeepEqual(got, want) {
+				t.Fatalf("boundaries=%v error=%v, want %v", got, err, want)
+			}
+			if len(got.Excluded()) != 0 {
+				t.Fatalf("excluded=%v, want none", got.Excluded())
+			}
+		}
+	}
+}
+
+func TestReadN03WithOptionsExclude(t *testing.T) {
+	const kept = `[[[139.1,36.1],[139.2,36.1],[139.2,36.2],[139.1,36.2],[139.1,36.1]]]`
+	const removed = `[[[141.1,36.1],[141.2,36.1],[141.2,36.2],[141.1,36.2],[141.1,36.1]]]`
+	const island = `[[[143.1,36.1],[143.2,36.1],[143.2,36.2],[143.1,36.2],[143.1,36.1]]]`
+	first := sourceJSON(t, document(feature("10001", kept), feature("10002", removed), feature("10003", island)))
+	second := sourceJSON(t, document(feature("10002", island)))
+	second.Name = "second"
+	sources := []ZIPSource{first, second}
+	exclude := []string{"10003", "10999", "10002"}
+	rollup := map[string]string{"10001": "10201"}
+	beforeExclude, beforeRollup := slices.Clone(exclude), maps.Clone(rollup)
+	b, err := ReadN03WithOptions(sources, N03Options{Rollup: rollup, Exclude: exclude})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !slices.Equal(exclude, beforeExclude) || !maps.Equal(rollup, beforeRollup) {
+		t.Fatal("input exclude or rollup changed")
+	}
+	exclude[0] = "10001"
+	rollup["10001"] = "99999"
+	if !slices.Equal(b.AreaCodes(), []string{"10201"}) || len(b.areas) != 1 || len(b.areas[0].polygons) != 1 {
+		t.Fatalf("areas=%v, want only retained polygon rolled up to 10201", b.areas)
+	}
+	if !slices.Equal(b.PrimaryMeshes(), []string{"5439"}) {
+		t.Fatalf("meshes=%v, want [5439]", b.PrimaryMeshes())
+	}
+	wantExcluded := []string{"10002", "10003"}
+	if !slices.Equal(b.Excluded(), wantExcluded) {
+		t.Fatalf("excluded=%v, want %v", b.Excluded(), wantExcluded)
+	}
+	returned := b.Excluded()
+	returned[0] = "99999"
+	if !slices.Equal(b.Excluded(), wantExcluded) {
+		t.Fatal("Excluded shares storage")
+	}
+	for _, tt := range []struct {
+		lon  string
+		want Location
+	}{
+		{"139.15", Location{AreaCode: "10201"}},
+		{"141.15", Location{}},
+		{"143.15", Location{}},
+		{"145.15", Location{}},
+	} {
+		got, err := b.Locate(rationalPoint("36.15", tt.lon))
+		if err != nil || got != tt.want {
+			t.Fatalf("longitude=%s location=%+v error=%v, want %+v", tt.lon, got, err, tt.want)
+		}
+	}
+	t.Run("all excluded", func(t *testing.T) {
+		b, err := ReadN03WithOptions(sources, N03Options{Exclude: []string{"10003", "10001", "10002"}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(b.areas) != 0 || len(b.AreaCodes()) != 0 || len(b.PrimaryMeshes()) != 0 || !slices.Equal(b.Excluded(), []string{"10001", "10002", "10003"}) {
+			t.Fatalf("boundaries=%+v", b)
+		}
+		got, err := b.Locate(rationalPoint("36.15", "139.15"))
+		if err != nil || got != (Location{}) {
+			t.Fatalf("location=%+v error=%v, want outside", got, err)
+		}
+	})
+}
+
+func TestReadN03Unassigned(t *testing.T) {
+	const unassigned = `[[[141.1,36.1],[141.2,36.1],[141.2,36.2],[141.1,36.2],[141.1,36.1]]]`
+	data := document(feature("10001", square), feature("10000", unassigned), feature("27000", unassigned),
+		feature("", unassigned), strings.Replace(feature("", unassigned), `"N03_007":""`, `"N03_007":null`, 1))
+	rollup := map[string]string{"27000": "27201", "10001": "10000"}
+	for _, tt := range []struct {
+		name string
+		read func([]ZIPSource, map[string]string) (*Boundaries, error)
+	}{
+		{"ReadN03", ReadN03},
+		{"ReadN03WithOptions", func(s []ZIPSource, r map[string]string) (*Boundaries, error) {
+			return ReadN03WithOptions(s, N03Options{Rollup: r})
+		}},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			b, err := tt.read([]ZIPSource{sourceJSON(t, data)}, rollup)
+			if err != nil {
+				t.Fatal(err)
+			}
+			want := readJSON(t, document(feature("10001", square)), rollup)
+			if !reflect.DeepEqual(b, want) || !slices.Equal(b.AreaCodes(), []string{"10000"}) || len(b.Excluded()) != 0 {
+				t.Fatalf("boundaries=%+v, want %+v", b, want)
+			}
+			if slices.Contains(b.PrimaryMeshes(), "5441") {
+				t.Fatalf("unassigned mesh remains: %v", b.PrimaryMeshes())
+			}
+			got, err := b.Locate(rationalPoint("36.15", "141.15"))
+			if err != nil || got != (Location{}) {
+				t.Fatalf("location=%+v error=%v, want outside", got, err)
+			}
+		})
+	}
+}
+
+func TestReadN03WithOptionsInvalidExclude(t *testing.T) {
+	sources := []ZIPSource{sourceJSON(t, document(feature("10002", square)))}
+	for _, tt := range []struct {
+		name    string
+		exclude []string
+		rollup  map[string]string
+	}{
+		{"empty", []string{""}, nil},
+		{"short", []string{"1001"}, nil},
+		{"long", []string{"100001"}, nil},
+		{"nondigit", []string{"1000x"}, nil},
+		{"non ASCII digits", []string{"１０００１"}, nil},
+		{"duplicate", []string{"10002", "10002"}, nil},
+		{"unassigned", []string{"10000"}, nil},
+		{"rollup key", []string{"10001"}, map[string]string{"10001": "10201"}},
+		{"rollup value", []string{"10201"}, map[string]string{"10001": "10201"}},
+		{"invalid after valid", []string{"10002", "1000x"}, nil},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			beforeExclude, beforeRollup := slices.Clone(tt.exclude), maps.Clone(tt.rollup)
+			b, err := ReadN03WithOptions(sources, N03Options{Rollup: tt.rollup, Exclude: tt.exclude})
+			if b != nil || !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("boundaries=%v error=%v, want nil and ErrInvalidArgument", b, err)
+			}
+			if !slices.Equal(tt.exclude, beforeExclude) || !maps.Equal(tt.rollup, beforeRollup) {
+				t.Fatal("input exclude or rollup changed")
+			}
+		})
+	}
+}
+
+func TestReadN03WithOptionsInvalidGeometry(t *testing.T) {
+	valid := sourceJSON(t, document(feature("10001", square), feature("10002", square)))
+	for _, code := range []string{"10000", "10002"} {
+		t.Run(code, func(t *testing.T) {
+			bad := sourceJSON(t, document(feature(code, `[]`)))
+			bad.Name = "bad"
+			b, err := ReadN03WithOptions([]ZIPSource{valid, bad}, N03Options{Exclude: []string{"10002"}})
+			checkReadFailure(t, b, err, ErrInvalidFormat, "bad", testN03File, code, "Features[0].Geometry")
 		})
 	}
 }

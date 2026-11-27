@@ -18,3 +18,5 @@ go test ./...
 データの出典は e-Stat と気象庁です。出典の正式な書き方はあとで足します。
 
 ライセンスは MIT です。詳しくは [LICENSE](LICENSE) を参照してください。
+
+`geo.RepresentativesWithOptions` は `RepresentativeOptions{AllowPartialElevation: true}` で、標高のある人口セルだけの人口加重平均を返します。一部が欠ける状態は `partial_mesh`、全部欠ける状態は `missing_mesh` です。従来の `Representatives` は欠損があれば平均標高を返しません。`ElevationPopulationCoverage` は標高のあるセルの人口の割合、`ElevationCellCoverage` は標高のある人口セル数の割合です。全部そろえば1、全部欠ければ0、人口が無ければnilです。

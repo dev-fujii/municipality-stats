@@ -51,7 +51,30 @@ func TestRepresentatives(t *testing.T) {
 			if tt.point == nil {
 				wantState = RepresentativeNoPopulation
 			}
-			want := Representative{"10002", tt.point, integer(t, tt.people), tt.meters, wantState, tt.state, tt.missing}
+			want := Representative{AreaCode: "10002", Point: tt.point, Population: integer(t, tt.people), ElevationMeters: tt.meters, State: wantState, ElevationState: tt.state, MissingElevationMeshes: tt.missing}
+			if tt.point != nil {
+				heights, _ := elevationByMesh(tt.elevation)
+				covered, total := new(big.Int), new(big.Int)
+				var cells, available int64
+				for _, cell := range tt.population {
+					if cell.People <= 0 {
+						continue
+					}
+					center, _ := MeshCenter(cell.MeshCode)
+					loc, _ := b.Locate(center)
+					if loc.AreaCode != "10002" {
+						continue
+					}
+					cells++
+					total.Add(total, big.NewInt(cell.People))
+					if heights[cell.MeshCode] != nil {
+						available++
+						covered.Add(covered, big.NewInt(cell.People))
+					}
+				}
+				want.ElevationPopulationCoverage = new(big.Rat).SetFrac(covered, total)
+				want.ElevationCellCoverage = big.NewRat(available, cells)
+			}
 			empty := Representative{AreaCode: "10001", Population: big.NewInt(0), State: RepresentativeNoPopulation, ElevationState: ElevationNoPopulation}
 			if !reflect.DeepEqual(got, []Representative{empty, want}) {
 				t.Fatalf("got=%+v, want=%+v", got, []Representative{empty, want})
@@ -102,7 +125,7 @@ func TestRepresentativesBoundary(t *testing.T) {
 		want  []Representative
 	}{
 		{"all population in one area", []string{"10002", "10001"}, []Representative{
-			{"10001", &center, big.NewInt(4), big.NewRat(100, 1), RepresentativeOK, ElevationOK, nil},
+			{AreaCode: "10001", Point: &center, Population: big.NewInt(4), ElevationMeters: big.NewRat(100, 1), State: RepresentativeOK, ElevationState: ElevationOK, ElevationPopulationCoverage: big.NewRat(1, 1), ElevationCellCoverage: big.NewRat(1, 1)},
 			{AreaCode: "10002", Population: big.NewInt(0), State: RepresentativeNoPopulation, ElevationState: ElevationNoPopulation},
 		}},
 		{"selected area does not receive neighbor population", []string{"10002"}, []Representative{{AreaCode: "10002", Population: big.NewInt(0), State: RepresentativeNoPopulation, ElevationState: ElevationNoPopulation}}},

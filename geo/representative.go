@@ -18,24 +18,38 @@ type ElevationState string
 
 const (
 	ElevationOK           ElevationState = "ok"
+	ElevationPartial      ElevationState = "partial_mesh"
 	ElevationMissing      ElevationState = "missing_mesh"
 	ElevationNoPopulation ElevationState = "no_population"
 )
 
 // Representative は人口で重み付けした代表点と平均標高を持つ。
 type Representative struct {
-	AreaCode               string
-	Point                  *Point
-	Population             *big.Int
-	ElevationMeters        *big.Rat
-	State                  RepresentativeState
-	ElevationState         ElevationState
-	MissingElevationMeshes []string
+	AreaCode                    string
+	Point                       *Point
+	Population                  *big.Int
+	ElevationMeters             *big.Rat
+	State                       RepresentativeState
+	ElevationState              ElevationState
+	MissingElevationMeshes      []string
+	ElevationPopulationCoverage *big.Rat
+	ElevationCellCoverage       *big.Rat
+}
+
+type RepresentativeOptions struct {
+	AllowPartialElevation bool
 }
 
 // Representatives は対象の区域の代表点と平均標高をコードの昇順で返す。
 // 人口の正のセルに標高欠損があれば、残りだけで標高を平均しない。
 func Representatives(b *Boundaries, population []PopulationCell, elevation []ElevationCell, areaCodes []string) ([]Representative, error) {
+	return RepresentativesWithOptions(b, population, elevation, areaCodes, RepresentativeOptions{})
+}
+
+// RepresentativesWithOptions は欠けた標高を除いて平均するかを opts で選べる。
+// 取得率は人口の正のセルを対象に、人口の重みとセル数でそれぞれ求める。
+// 標高が全部あれば1、全部欠ければ0、人口が無ければnilを返す。
+func RepresentativesWithOptions(b *Boundaries, population []PopulationCell, elevation []ElevationCell, areaCodes []string, opts RepresentativeOptions) ([]Representative, error) {
 	if b == nil || len(areaCodes) == 0 {
 		return nil, fmt.Errorf("%w: nil Boundaries or empty areaCodes", ErrInvalidArgument)
 	}
@@ -86,7 +100,7 @@ func Representatives(b *Boundaries, population []PopulationCell, elevation []Ele
 	slices.Sort(codes)
 	result := make([]Representative, 0, len(codes))
 	for _, code := range codes {
-		result = append(result, totals[code].representative(code))
+		result = append(result, totals[code].representative(code, opts))
 	}
 	return result, nil
 }
@@ -129,6 +143,8 @@ func elevationByMesh(cells []ElevationCell) (map[string]*big.Rat, error) {
 
 type representativeTotal struct {
 	population                     big.Int
+	elevationPopulation            big.Int
+	cells, elevationCells          int64
 	latitude, longitude, elevation big.Rat
 	missing                        []string
 }
@@ -136,6 +152,7 @@ type representativeTotal struct {
 func (s *representativeTotal) add(cell PopulationCell, center Point, meters *big.Rat) {
 	people := big.NewInt(cell.People)
 	s.population.Add(&s.population, people)
+	s.cells++
 	weight := new(big.Rat).SetInt(people)
 	var term big.Rat
 	s.latitude.Add(&s.latitude, term.Mul(weight, center.Latitude))
@@ -143,11 +160,13 @@ func (s *representativeTotal) add(cell PopulationCell, center Point, meters *big
 	if meters == nil {
 		s.missing = append(s.missing, cell.MeshCode)
 	} else {
+		s.elevationPopulation.Add(&s.elevationPopulation, people)
+		s.elevationCells++
 		s.elevation.Add(&s.elevation, term.Mul(weight, meters))
 	}
 }
 
-func (s *representativeTotal) representative(code string) Representative {
+func (s *representativeTotal) representative(code string, opts RepresentativeOptions) Representative {
 	r := Representative{
 		AreaCode: code, Population: new(big.Int).Set(&s.population),
 		State: RepresentativeNoPopulation, ElevationState: ElevationNoPopulation,
@@ -156,6 +175,8 @@ func (s *representativeTotal) representative(code string) Representative {
 		return r
 	}
 	weight := new(big.Rat).SetInt(&s.population)
+	r.ElevationPopulationCoverage = new(big.Rat).SetFrac(&s.elevationPopulation, &s.population)
+	r.ElevationCellCoverage = big.NewRat(s.elevationCells, s.cells)
 	r.State = RepresentativeOK
 	r.Point = &Point{
 		Latitude:  new(big.Rat).Quo(&s.latitude, weight),
@@ -164,6 +185,10 @@ func (s *representativeTotal) representative(code string) Representative {
 	if len(s.missing) > 0 {
 		r.ElevationState = ElevationMissing
 		r.MissingElevationMeshes = slices.Clone(s.missing)
+		if opts.AllowPartialElevation && s.elevationPopulation.Sign() > 0 {
+			r.ElevationState = ElevationPartial
+			r.ElevationMeters = new(big.Rat).Quo(&s.elevation, new(big.Rat).SetInt(&s.elevationPopulation))
+		}
 	} else {
 		r.ElevationState = ElevationOK
 		r.ElevationMeters = new(big.Rat).Quo(&s.elevation, weight)
